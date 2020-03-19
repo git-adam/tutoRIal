@@ -1,34 +1,44 @@
-#mu <- 50
-#stddev <- 1
-#N <- 10000
-#pop <- rnorm(N, mean = mu, sd = stddev)
+#install.packages('RoughSets')
+library(RoughSets)
+data(RoughSetData)
+#data(list = 'RoughSetData', package = 'RoughSets')
+wine.data <- RoughSetData$wine.dt
 
-#n <- 30
-#samp.means <- rnorm(N, mean = mu, sd = stddev / sqrt(n))
-#max.samp.means <- max(density(samp.means)$y)
+set.seed(13)
 
-#plot(density(pop), main = "Population Density", ylim = c(0, max.samp.means), xlab = "X", ylab = "")
-#lines(density(samp.means))
+wine.data <- wine.data[sample(nrow(wine.data)),]
 
-#install.packages("dplyr",repos = 'https://cloud.r-project.org',dependencies = TRUE)
+## Split the data into a training set and a test set,
+## 60% for training and 40% for testing:
+idx <- round(0.6 * nrow(wine.data))
 
+wine.data
 
-#install.packages("readr")
-
-#install.packages("readr")
-#install.packages("dplyr")
-
-library("dplyr")
-library("readr")
+wine.tra <- SF.asDecisionTable(wine.data[1:idx,],
+                               decision.attr = 14,
+                              indx.nominal = 14)
 
 
-artists <- read_csv('dataR2.csv')
+wine.tst <- SF.asDecisionTable(wine.data[(idx + 1):nrow(wine.data), - ncol(wine.data)])
 
-test <- function() {
-    print("test")
-}
-test()
+true.classes <- wine.data[(idx + 1):nrow(wine.data), ncol(wine.data)]
 
-#artists %>%
-head(artists,8)
 
+## discretization:
+cut.values <- D.discretization.RST(wine.tra, type.method = "unsupervised.quantiles", nOfIntervals = 3)
+
+data.tra <- SF.applyDecTable(wine.tra, cut.values)
+data.tst <- SF.applyDecTable(wine.tst, cut.values)
+
+## rule induction from the training set:
+
+rules <- RI.CN2Rules.RST(data.tra, K = 5)
+rules
+
+## predicitons for the test set:
+pred.vals <- predict(rules, data.tst)
+
+pred.vals==true.classes
+
+## checking the accuracy of predictions:
+mean(pred.vals == true.classes)
